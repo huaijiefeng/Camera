@@ -11,6 +11,9 @@ import android.util.Log;
 import android.view.*;
 import android.widget.ImageView;
 import com.snail.camera.R;
+import com.snail.camera.core.CameraHolder;
+import com.snail.camera.core.CameraManager;
+import com.snail.camera.core.CameraTouch;
 
 import java.io.IOException;
 import java.util.List;
@@ -18,7 +21,7 @@ import java.util.List;
 /**
  * Created by fenghb on 2014/5/7.
  */
-public class CameraService extends Service implements SurfaceHolder.Callback, View.OnTouchListener {
+public class CameraService extends Service implements CameraManager.Callback {
     private static final String TAG = "CameraService";
 
     //camera height
@@ -65,6 +68,8 @@ public class CameraService extends Service implements SurfaceHolder.Callback, Vi
         super.onCreate();
         wm = (WindowManager) getApplicationContext().getSystemService(
                 Context.WINDOW_SERVICE);
+
+        wmParams = new WindowManager.LayoutParams();
         initViews();
         createCameraView();
         initCamera();
@@ -84,47 +89,17 @@ public class CameraService extends Service implements SurfaceHolder.Callback, Vi
     }
 
 
-    @Override
-    public void surfaceCreated(SurfaceHolder surfaceHolder) {
-        try {
-            if (mCamera != null) {
-                mCamera.setPreviewDisplay(surfaceHolder);
-            }
-        } catch (IOException exception) {
-            Log.e(TAG, "IOException caused by setPreviewDisplay()", exception);
-        }
-
-    }
-
-    @Override
-    public void surfaceChanged(SurfaceHolder surfaceHolder, int i, int i2, int i3) {
-        if (mCamera != null) {
-            Camera.Parameters parameters = mCamera.getParameters();
-
-            Camera.Size csize = mCamera.getParameters().getPreviewSize();
-            int mPreviewHeight = csize.height; //
-            int mPreviewWidth = csize.width;
-            parameters.setPreviewSize(mPreviewWidth, mPreviewHeight);
-
-            mCamera.setParameters(parameters);
-            mCamera.startPreview();
-        }
-    }
-
-    @Override
-    public void surfaceDestroyed(SurfaceHolder surfaceHolder) {
-        if (mCamera != null) {
-            mCamera.stopPreview();
-        }
-    }
-
-
     private void initViews() {
         layout = LayoutInflater.from(this).inflate(R.layout.camera, null);
+
         image = (ImageView) layout.findViewById(R.id.image);
         cameraView = (SurfaceView) layout.findViewById(R.id.camera_view);
+        cameraView.setFocusableInTouchMode(true);
+        cameraView.setOnTouchListener(new CameraTouch(wm, wmParams));
+
         mHolder = cameraView.getHolder();
-        mHolder.addCallback(this);
+        mCamera = Camera.open();
+        mHolder.addCallback(new CameraHolder(mCamera));
 
     }
 
@@ -132,7 +107,7 @@ public class CameraService extends Service implements SurfaceHolder.Callback, Vi
     //create camera view
     private void createCameraView() {
 
-        wmParams = new WindowManager.LayoutParams();
+
         wmParams.type = WindowManager.LayoutParams.TYPE_PHONE;
         wmParams.format = PixelFormat.RGBA_8888;
         wmParams.flags = WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL
@@ -148,7 +123,6 @@ public class CameraService extends Service implements SurfaceHolder.Callback, Vi
 
     //init camera
     private void initCamera() {
-        mCamera = Camera.open();
         recorder = new MediaRecorder();
         recorder.setVideoSource(MediaRecorder.VideoSource.CAMERA);
         recorder.setOutputFormat(MediaRecorder.OutputFormat.THREE_GPP);
@@ -156,7 +130,6 @@ public class CameraService extends Service implements SurfaceHolder.Callback, Vi
         recorder.setVideoSize(176, 144);
         recorder.setVideoFrameRate(20);
         recorder.setPreviewDisplay(cameraView.getHolder().getSurface());
-
     }
 
 
@@ -195,38 +168,17 @@ public class CameraService extends Service implements SurfaceHolder.Callback, Vi
 
 
     @Override
-    public boolean onTouch(View view, MotionEvent event) {
-        switch (view.getId()) {
-            case R.id.layout:
-                float x = event.getRawX();
-                float y = event.getRawY();
-                float mTouchStartX = 0;
-                float mTouchStartY = 0;
-                switch (event.getAction()) {
-                    case MotionEvent.ACTION_DOWN:
-                        mTouchStartX = event.getX();
-                        mTouchStartY = event.getY();
-                        break;
-                    case MotionEvent.ACTION_MOVE:
-                        wmParams.x = (int) (x - mTouchStartX);
-                        wmParams.y = (int) (y - mTouchStartY);
-                        wm.updateViewLayout(layout, wmParams);
+    public void startRecoder() {
+        
+    }
 
-                        break;
-                    case MotionEvent.ACTION_UP:
-                        wmParams.x = (int) (x - mTouchStartX);
-                        wmParams.y = (int) (y - mTouchStartY);
-                        wm.updateViewLayout(layout, wmParams);
-                        mTouchStartX = mTouchStartY = 0;
-                        break;
-                }
-                break;
-            default:
-                break;
+    @Override
+    public void stopRecoder() {
 
+    }
 
-        }
+    @Override
+    public void takePhoto() {
 
-        return true;
     }
 }
